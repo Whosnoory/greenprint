@@ -47,9 +47,9 @@ EDIT_TOOLS = ("Edit", "Write", "MultiEdit")
 def _proj_root():
     env = os.environ.get("CLAUDE_PROJECT_DIR")
     if env and os.path.isdir(env):
-        return os.path.abspath(env)
+        return os.path.realpath(env)
     # this file lives at <root>/.claude/hooks/greenprint.py
-    return os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    return os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 
 ROOT = _proj_root()
@@ -70,7 +70,6 @@ DEFAULT_CONFIG = {
         "**/__init__.py", "**/__pycache__/**",
         "docs/**", "**/*.md", "migrations/**", "setup.py", ".claude/**",
     ],
-    "test_dir": "tests",
     "max_stop_blocks": 8,
     "pretool_hard_block": False,
 }
@@ -127,7 +126,7 @@ def _rel(path):
     if not path:
         return None
     try:
-        ap = os.path.abspath(path)
+        ap = os.path.realpath(path)
         r = os.path.relpath(ap, ROOT).replace(os.sep, "/")
         return r
     except Exception:
@@ -169,6 +168,7 @@ def _blank_state():
         "touched": [],
         "session_allow": [],
         "stop_blocks": 0,
+        "block_fingerprint": [],
         "updated_at": None,
     }
 
@@ -210,14 +210,19 @@ def log_event(kind, payload):
 
 
 def ensure_session(st, sid, cfg):
-    """Reset state when the session changes, so guards never leak between runs."""
-    if sid and st.get("session_id") != sid:
+    """Reset state only when the session genuinely changes, so guards never leak
+    between runs. Adopt a new session_id WITHOUT wiping when state has none yet
+    (guards registered by /repro before the session's first hook must survive)."""
+    if not sid:
+        return
+    current = st.get("session_id")
+    if current and current != sid:
         fresh = _blank_state()
         fresh["session_id"] = sid
         fresh["enabled"] = bool(cfg.get("enabled", True))
         st.clear()
         st.update(fresh)
-    elif st.get("session_id") is None and sid:
+    elif not current:
         st["session_id"] = sid
 
 
@@ -260,6 +265,14 @@ def load_and_run_test(test_rel):
         return ("error", 0, 1, "test file not found: %s" % test_rel)
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
+    # Drop previously-imported project modules so an edited source file is read
+    # fresh within a single process (e.g. when Stop refreshes several guards).
+    for _name in list(sys.modules):
+        if _name == "__main__" or _name.startswith("gp_test_"):
+            continue
+        _f = getattr(sys.modules.get(_name), "__file__", None) or ""
+        if _f and os.path.realpath(_f).startswith(ROOT + os.sep):
+            sys.modules.pop(_name, None)
     modname = "gp_test_%d" % (abs(hash(test_rel)) % (10 ** 9))
     try:
         spec = importlib.util.spec_from_file_location(modname, test_abs)
@@ -329,7 +342,7 @@ def infer_target(test_rel):
             return cand.replace(os.sep, "/")
         pkg = os.path.join(*m.split("."))
         if os.path.isfile(os.path.join(ROOT, pkg, "__init__.py")):
-            return pkg.replace(os.sep, "/")
+            return os.path.join(pkg, "__init__.py").replace(os.sep, "/")
     return None
 
 
@@ -406,7 +419,7 @@ def cmd_posttooluse(data):
     cfg = load_config()
     st = load_state()
     ensure_session(st, data.get("session_id"), cfg)
-    if not st.get("enabled", True):
+    if not st.get("enabled", True) or os.environ.get("GREENPRINT_DISABLE"):
         save_state(st)
         sys.exit(0)
     tool = data.get("tool_name", "")
@@ -431,7 +444,7 @@ def cmd_stop(data):
     cfg = load_config()
     st = load_state()
     ensure_session(st, data.get("session_id"), cfg)
-    if not st.get("enabled", True):
+    if not st.get("enabled", True) or os.environ.get("GREENPRINT_DISABLE"):
         save_state(st)
         sys.exit(0)
     refresh_guards(st)
@@ -439,9 +452,20 @@ def cmd_stop(data):
     unprotected = unprotected_files(st, cfg)
     if not bad_guards and not unprotected:
         st["stop_blocks"] = 0
+        st["block_fingerprint"] = []
         save_state(st)
         sys.exit(0)
 
+    # Re-arm the valve whenever the set of unresolved items changes, so the
+    # counter caps consecutive blocks on the SAME problem, not the whole session
+    # (otherwise a later unproven edit would sail through a spent valve).
+    fingerprint = sorted(
+        [str(g.get("id") or g.get("test_file")) for g in bad_guards]
+        + ["U:" + f for f in unprotected]
+    )
+    if st.get("block_fingerprint") != fingerprint:
+        st["stop_blocks"] = 0
+        st["block_fingerprint"] = fingerprint
     st["stop_blocks"] = int(st.get("stop_blocks", 0)) + 1
     maxb = int(cfg.get("max_stop_blocks", 8))
     if st["stop_blocks"] > maxb:
@@ -479,6 +503,10 @@ def cmd_stop(data):
 
 def cmd_statusline(data):
     # Read-only and fast: reflect last-known state, never run tests here.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     try:
         cfg = load_config()
         st = load_state()
@@ -555,6 +583,15 @@ def cmd_runtest(argv):
     target = _rel(flags.get("target")) if isinstance(flags.get("target"), str) else None
     if not target:
         target = infer_target(test_rel)
+    if not target:
+        # last resort: tie the guard to the most recently touched source file,
+        # so a GREEN test actually clears the Stop gate for the file being fixed.
+        _allow = set(st.get("session_allow", []))
+        for _t in reversed(st.get("touched", [])):
+            _f = _t.get("file")
+            if _f and _is_source(_f, cfg) and _f not in _allow:
+                target = _f
+                break
     symbol = flags.get("symbol") if isinstance(flags.get("symbol"), str) else None
     guard = {
         "id": symbol or (os.path.basename(target) if target else os.path.basename(test_rel)),

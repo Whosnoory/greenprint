@@ -16,7 +16,6 @@
     "setup.py",
     ".claude/**"
   ],
-  "test_dir": "tests",
   "max_stop_blocks": 8,
   "_help_pretool_hard_block": "false (default) = deny edits via the documented permissionDecision and let Claude redirect to /repro cleanly. true = ALSO exit(2) to force the block harder, at the small risk of halting the turn on some builds. The Stop gate enforces correctness either way.",
   "pretool_hard_block": false

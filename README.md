@@ -35,8 +35,10 @@ existed or that it is gone.
   machine. The bundled test runner is stdlib `unittest`, so nothing needs
   installing, not even a test framework.
 
-`python3` ships with the Xcode Command Line Tools, so it is present on any
-machine that already has `git` and Claude Code.
+`python3` ships with macOS (via the Command Line Tools) and with virtually every
+Linux distribution, so it is present on essentially any machine that already runs
+`git` and Claude Code. On Windows, change `python3` to `python` in
+`.claude/settings.json`.
 
 ## Prove it in 5 seconds, no Claude
 
@@ -53,7 +55,7 @@ Greenprint self-test  (no Claude, no network, no install)
   2. a broken / erroring test           ->  ERROR  rejected ✓  (errors are NOT a valid reproduction)
   3. apply the fix, run the same test    ->  PASS   🟢 GREEN ✓  (passes = fix proven)
 
-  Result: PASS. The RED->GREEN gate works on this machine.
+  Result: PASS. The RED→GREEN gate works on this machine.
 ```
 
 That runs the whole gate against a throwaway fixture in a temp directory. It
