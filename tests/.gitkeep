@@ -1,0 +1,2 @@
+# Greenprint writes reproduction tests here (e.g. tests/test_repro_<symbol>.py).
+# This directory ships empty on purpose — /repro fills it.

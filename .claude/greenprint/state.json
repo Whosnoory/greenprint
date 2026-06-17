@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "session_id": null,
+  "enabled": true,
+  "guards": [],
+  "touched": [],
+  "session_allow": [],
+  "stop_blocks": 0,
+  "updated_at": null
+}

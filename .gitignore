@@ -1,0 +1,3 @@
+__pycache__/
+*.pyc
+.claude/greenprint/log.jsonl

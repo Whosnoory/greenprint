@@ -1,0 +1,23 @@
+{
+  "_help": "Greenprint config. All optional — delete this file and sane defaults apply. Globs match POSIX paths relative to the repo root and support ** (any depth), * (within a segment), and ?.",
+  "_help_ignore": "Add paths here that should NEVER require a proving test (docs, generated code, configs, migrations). This is the main knob if Greenprint ever nags on a legitimate non-bug-fix edit.",
+  "enabled": true,
+  "source_globs": ["**/*.py"],
+  "ignore_globs": [
+    "**/tests/**",
+    "**/test_*.py",
+    "**/*_test.py",
+    "**/conftest.py",
+    "**/__init__.py",
+    "**/__pycache__/**",
+    "docs/**",
+    "**/*.md",
+    "migrations/**",
+    "setup.py",
+    ".claude/**"
+  ],
+  "test_dir": "tests",
+  "max_stop_blocks": 8,
+  "_help_pretool_hard_block": "false (default) = deny edits via the documented permissionDecision and let Claude redirect to /repro cleanly. true = ALSO exit(2) to force the block harder, at the small risk of halting the turn on some builds. The Stop gate enforces correctness either way.",
+  "pretool_hard_block": false
+}
