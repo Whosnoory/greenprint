@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Greenprint — a deterministic TDD enforcement gate for Claude Code.
+Greenprint: a deterministic TDD enforcement gate for Claude Code.
 
 One file. Python standard library only. No pip, no network, no accounts.
 
@@ -17,7 +17,7 @@ It wires three hooks plus a status line:
 The Stop gate is the reliable core: even if the PreToolUse deny is ignored by
 the harness (a known intermittent bug), the edit is still *recorded on hook
 fire*, so the Stop gate catches it and refuses to let the turn finish on an
-unproven change. Enforcement degrades from "can't edit" to "can't finish" —
+unproven change. Enforcement degrades from "can't edit" to "can't finish",
 never to "no enforcement".
 
 Subcommands:
@@ -391,7 +391,7 @@ def cmd_pretooluse(data):
         log_event("deny", {"file": r, "tool": tool})
         reason = (
             "Greenprint blocked this edit to `%s`.\n"
-            "No failing test has reproduced the bug yet — guidance is not proof.\n"
+            "No failing test has reproduced the bug yet. Guidance is not proof.\n"
             "Run  /repro  to write a test that FAILS for the right reason; this edit "
             "unlocks automatically once a RED test is registered.\n"
             "Not a bug fix? Run  /greenprint allow %s  or add the path to "
@@ -452,7 +452,7 @@ def cmd_stop(data):
         )
         sys.exit(0)
 
-    lines = ["Greenprint is holding this turn open — do NOT report the work as done yet."]
+    lines = ["Greenprint is holding this turn open. Do NOT report the work as done yet."]
     for g in bad_guards:
         who = g.get("symbol") or g.get("target_file") or g.get("id")
         if g.get("status") == "error":
@@ -497,12 +497,12 @@ def cmd_statusline(data):
             names.append(g.get("symbol") or os.path.basename(g.get("target_file") or g.get("id") or "?"))
         names.extend(os.path.basename(f) for f in unprotected)
         label = ", ".join(dict.fromkeys(names))[:32]
-        sys.stdout.write("\U0001f534 Greenprint: RED — %s" % label)
+        sys.stdout.write("\U0001f534 Greenprint: RED · %s" % label)
         return
     if guards:
         names = ", ".join(dict.fromkeys(
             g.get("symbol") or os.path.basename(g.get("target_file") or "?") for g in guards))[:32]
-        sys.stdout.write("\U0001f7e2 Greenprint: GREEN — %s" % names)
+        sys.stdout.write("\U0001f7e2 Greenprint: GREEN · %s" % names)
         return
     sys.stdout.write("\U0001f7e2 Greenprint: clear")
 
@@ -538,13 +538,13 @@ def cmd_runtest(argv):
     status, nf, ne, out = load_and_run_test(test_rel)
 
     if status == "error":
-        print("GREENPRINT: ERROR — the test could not run cleanly, so it does NOT yet "
+        print("GREENPRINT: ERROR. The test could not run cleanly, so it does NOT yet "
               "reproduce the bug.\nA valid reproduction fails on an ASSERTION, not an import/"
               "syntax/runtime error. Fix the test, then re-run.\n\n--- test output (tail) ---\n"
               + _tail(out, 1500))
         sys.exit(1)
     if status == "pass":
-        print("GREENPRINT: PASS — this test already passes, so it does NOT reproduce a bug "
+        print("GREENPRINT: PASS. This test already passes, so it does NOT reproduce a bug "
               "(or the bug is already fixed).\nWrite the assertion so it FAILS against the current "
               "buggy behavior, then re-run.\n\n--- test output (tail) ---\n" + _tail(out, 1000))
         sys.exit(1)
@@ -573,7 +573,7 @@ def cmd_runtest(argv):
         record_touched(st, target, "repro")
     save_state(st)
     log_event("register_red", {"test_file": test_rel, "target": target, "symbol": symbol})
-    print("GREENPRINT: RED registered — the bug is reproduced (%d failing assertion%s)."
+    print("GREENPRINT: RED registered. The bug is reproduced (%d failing assertion%s)."
           % (nf, "" if nf == 1 else "s"))
     print("Guard: %s  ->  test %s" % (target or "(target inferred: none)", test_rel))
     print("Now fix %s and make this test pass. Verify with: "
@@ -602,8 +602,8 @@ def cmd_check(argv):
         for f in unp:
             print("  - %s" % f)
     allgreen = guards and all(g.get("status") == "green" for g in guards) and not unp
-    print("\nResult: %s" % ("ALL GREEN — safe to finish." if allgreen
-                            else "NOT all green — the Stop gate will hold the turn open."))
+    print("\nResult: %s" % ("ALL GREEN. Safe to finish." if allgreen
+                            else "NOT all green. The Stop gate will hold the turn open."))
     sys.exit(0)
 
 
@@ -664,7 +664,7 @@ def cmd_selftest(argv):
     """Prove the RED->GREEN gate end to end against a throwaway fixture.
 
     No Claude, no network, no install, and it never touches this repo's files
-    or state — everything happens in a temp directory.
+    or state. Everything happens in a temp directory.
     """
     import tempfile
     import shutil
@@ -712,8 +712,8 @@ def cmd_selftest(argv):
                  if ok3 else "UNEXPECTED"))
 
         allok = ok1 and ok2 and ok3
-        print("\n  Result: %s" % ("PASS — the RED→GREEN gate works on this machine."
-                                   if allok else "FAIL — see above."))
+        print("\n  Result: %s" % ("PASS. The RED→GREEN gate works on this machine."
+                                   if allok else "FAIL. See above."))
         sys.exit(0 if allok else 1)
     finally:
         shutil.rmtree(d, ignore_errors=True)

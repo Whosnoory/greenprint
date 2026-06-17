@@ -3,14 +3,14 @@ name: repro
 description: Use when asked to fix a bug, error, crash, or wrong/incorrect behavior. Reproduces the bug with a failing (RED) stdlib unittest BEFORE any source edit, registers it with Greenprint, and keeps the turn open until that test passes (GREEN). Required because Greenprint blocks source edits until a RED test exists.
 ---
 
-# /repro — reproduce a bug with a failing test first
+# /repro: reproduce a bug with a failing test first
 
 Greenprint will not let you edit source code to fix a bug until a test has
 **failed for the right reason** (proving the bug is real), and will not let you
 end the turn until that test **passes** (proving the fix works). This skill is
 how you satisfy that gate. No production code without a failing test first.
 
-Use Python's standard-library `unittest` only — no pytest, no pip, no extra
+Use Python's standard-library `unittest` only, no pytest, no pip, no extra
 deps. Tests go in `tests/test_repro_<symbol>.py`.
 
 ## Steps
@@ -19,7 +19,7 @@ deps. Tests go in `tests/test_repro_<symbol>.py`.
    the function/symbol that is wrong (e.g. `app/cart.py`, `cart_total`). Read it.
 
 2. **Write a failing test** at `tests/test_repro_<symbol>.py` that asserts the
-   *correct* behavior — so it fails against the current buggy code. Import the
+   *correct* behavior, so it fails against the current buggy code. Import the
    target from the repo root. Template:
 
    ```python
@@ -35,7 +35,7 @@ deps. Tests go in `tests/test_repro_<symbol>.py`.
        unittest.main()
    ```
 
-   Writing the test file is allowed — Greenprint never blocks edits under
+   Writing the test file is allowed. Greenprint never blocks edits under
    `tests/`.
 
 3. **Run it through Greenprint** so the failure is verified and the guard is
@@ -52,7 +52,7 @@ deps. Tests go in `tests/test_repro_<symbol>.py`.
    - `GREENPRINT: PASS` → the test does not actually exercise the bug. Tighten
      the assertion so it fails against the current behavior, then re-run.
 
-4. **Fix the source.** Now edit the target file — Greenprint allows it because a
+4. **Fix the source.** Now edit the target file. Greenprint allows it because a
    guard covers that file.
 
 5. **Confirm GREEN before you finish:**

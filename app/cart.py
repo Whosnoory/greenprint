@@ -15,7 +15,7 @@ def cart_total(prices):
     60
     """
     total = 0
-    for i in range(len(prices) - 1):  # BUG: off-by-one — silently drops the last item
+    for i in range(len(prices) - 1):  # BUG: off-by-one, silently drops the last item
         total += prices[i]
     return total
 

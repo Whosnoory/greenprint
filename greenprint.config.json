@@ -1,5 +1,5 @@
 {
-  "_help": "Greenprint config. All optional — delete this file and sane defaults apply. Globs match POSIX paths relative to the repo root and support ** (any depth), * (within a segment), and ?.",
+  "_help": "Greenprint config. All optional. Delete this file and sane defaults apply. Globs match POSIX paths relative to the repo root and support ** (any depth), * (within a segment), and ?.",
   "_help_ignore": "Add paths here that should NEVER require a proving test (docs, generated code, configs, migrations). This is the main knob if Greenprint ever nags on a legitimate non-bug-fix edit.",
   "enabled": true,
   "source_globs": ["**/*.py"],
