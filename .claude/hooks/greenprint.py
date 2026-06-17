@@ -26,6 +26,7 @@ Subcommands:
   check                                           (re-run guards, print status)
   on | off | allow <file> | reset                 (session controls / escape hatches)
   doctor                                          (self-check + environment dump)
+  selftest                                        (prove RED->GREEN cold, no Claude)
 """
 
 import sys
@@ -659,6 +660,65 @@ def cmd_doctor(argv):
     sys.exit(0)
 
 
+def cmd_selftest(argv):
+    """Prove the RED->GREEN gate end to end against a throwaway fixture.
+
+    No Claude, no network, no install, and it never touches this repo's files
+    or state — everything happens in a temp directory.
+    """
+    import tempfile
+    import shutil
+
+    d = tempfile.mkdtemp(prefix="greenprint_selftest_")
+    if d not in sys.path:
+        sys.path.insert(0, d)
+    buggy = os.path.join(d, "buggy.py")
+    good_test = os.path.join(d, "test_buggy.py")
+    err_test = os.path.join(d, "test_err.py")
+    try:
+        with open(buggy, "w") as fh:
+            fh.write("def total(xs):\n    s = 0\n    for i in range(len(xs) - 1):  # off-by-one bug\n        s += xs[i]\n    return s\n")
+        with open(good_test, "w") as fh:
+            fh.write("import unittest\nfrom buggy import total\n\n"
+                     "class T(unittest.TestCase):\n"
+                     "    def test_sum_all(self):\n"
+                     "        self.assertEqual(total([1, 2, 3]), 6)\n")
+        with open(err_test, "w") as fh:
+            fh.write("import unittest\nfrom buggy import does_not_exist  # import error\n\n"
+                     "class T(unittest.TestCase):\n"
+                     "    def test_x(self):\n        self.assertTrue(True)\n")
+
+        print("Greenprint self-test  (no Claude, no network, no install)\n")
+
+        st1, _, _, _ = load_and_run_test(good_test)
+        ok1 = st1 == "fail"
+        print("  1. bug present, run the proving test  ->  %-5s  %s"
+              % (st1.upper(), "\U0001f534 RED  ✓  (fails on an assertion = real bug)"
+                 if ok1 else "UNEXPECTED"))
+
+        st2, _, _, _ = load_and_run_test(err_test)
+        ok2 = st2 == "error"
+        print("  2. a broken / erroring test           ->  %-5s  %s"
+              % (st2.upper(), "rejected ✓  (errors are NOT a valid reproduction)"
+                 if ok2 else "UNEXPECTED"))
+
+        with open(buggy, "w") as fh:
+            fh.write("def total(xs):\n    s = 0\n    for i in range(len(xs)):  # fixed\n        s += xs[i]\n    return s\n")
+        sys.modules.pop("buggy", None)  # bust the import cache so the fix is seen
+        st3, _, _, _ = load_and_run_test(good_test)
+        ok3 = st3 == "pass"
+        print("  3. apply the fix, run the same test    ->  %-5s  %s"
+              % (st3.upper(), "\U0001f7e2 GREEN ✓  (passes = fix proven)"
+                 if ok3 else "UNEXPECTED"))
+
+        allok = ok1 and ok2 and ok3
+        print("\n  Result: %s" % ("PASS — the RED→GREEN gate works on this machine."
+                                   if allok else "FAIL — see above."))
+        sys.exit(0 if allok else 1)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 # --------------------------------------------------------------------------
 # Dispatch
 # --------------------------------------------------------------------------
@@ -694,6 +754,8 @@ def main():
             cmd_control(cmd, rest)
         elif cmd == "doctor":
             cmd_doctor(rest)
+        elif cmd == "selftest":
+            cmd_selftest(rest)
         else:
             print(__doc__)
             sys.exit(2)

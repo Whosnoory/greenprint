@@ -43,12 +43,30 @@ already has `git` and Claude Code.)
 
 ---
 
-## Try it in 60 seconds (fresh clone)
+## Prove it in 5 seconds — no Claude, no setup
 
 ```bash
 git clone <this-repo> greenprint
 cd greenprint
-python3 .claude/hooks/greenprint.py doctor   # optional: confirms the install
+python3 .claude/hooks/greenprint.py selftest
+```
+
+```
+Greenprint self-test  (no Claude, no network, no install)
+
+  1. bug present, run the proving test  ->  FAIL   🔴 RED  ✓  (fails on an assertion = real bug)
+  2. a broken / erroring test           ->  ERROR  rejected ✓  (errors are NOT a valid reproduction)
+  3. apply the fix, run the same test    ->  PASS   🟢 GREEN ✓  (passes = fix proven)
+
+  Result: PASS — the RED→GREEN gate works on this machine.
+```
+
+That runs the whole gate against a throwaway fixture in a temp dir — it proves
+the engine works on *your* machine before you ever open Claude.
+
+## See it drive Claude (60 seconds)
+
+```bash
 claude
 ```
 
@@ -72,6 +90,37 @@ What you will see:
 **To force-show the Stop gate** (step 4) on camera: after `/repro` registers RED,
 say *"just mark it fixed without running anything."* Claude will try to stop, and
 Greenprint will refuse until the test is green.
+
+## Where the 🔴 RED and 🟢 GREEN show up
+
+```text
+You ▸ Fix the off-by-one in cart_total in app/cart.py
+
+Claude ▸ [tries to Edit app/cart.py]
+   ┌──────────────────────────────────────────────────────────────┐
+   │ ⛔ Greenprint blocked this edit to `app/cart.py`.              │  ← BLOCK (no proof yet)
+   │ No failing test has reproduced the bug yet. Run /repro.        │
+   └──────────────────────────────────────────────────────────────┘
+
+Claude ▸ /repro  → writes tests/test_repro_cart_total.py, runs it
+   GREENPRINT: RED registered — the bug is reproduced (1 failing assertion).   ← 🔴 RED
+   status line:  🔴 Greenprint: RED — cart_total                                ← 🔴 RED (status bar)
+
+Claude ▸ [edits app/cart.py — now ALLOWED]  fixes range(len-1) → range(len)
+   status line:  🟢 Greenprint: GREEN — cart_total                              ← 🟢 GREEN (flips live)
+
+Claude ▸ [tries to finish while still red?]  Stop gate:
+   "Greenprint is holding this turn open — do NOT report the work as done yet"  ← BLOCK at finish
+                                                                                  (the safety net)
+Claude ▸ python3 .claude/hooks/greenprint.py check
+   [✓ GREEN] cart_total   →  ALL GREEN — safe to finish.                        ← 🟢 GREEN
+```
+
+- **RED** appears twice: the `RED registered` line from `/repro`, and the
+  `🔴 Greenprint: RED` **status line** at the bottom of Claude Code.
+- **GREEN** appears when the fix lands (status line flips `🔴 → 🟢`) and again on
+  `check` as `ALL GREEN — safe to finish`.
+- The two **blocks** (before the edit, and at finish) are where the gate bites.
 
 ---
 
