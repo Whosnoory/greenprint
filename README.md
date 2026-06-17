@@ -46,7 +46,7 @@ already has `git` and Claude Code.)
 ## Prove it in 5 seconds — no Claude, no setup
 
 ```bash
-git clone <this-repo> greenprint
+git clone https://github.com/Whosnoory/greenprint.git greenprint
 cd greenprint
 python3 .claude/hooks/greenprint.py selftest
 ```
@@ -213,4 +213,4 @@ tests/                           # empty; /repro fills it
 
 ## License
 
-MIT.
+MIT © Noormal Wardak
